@@ -11,14 +11,17 @@ clock = pygame.time.Clock()
 def run_intelligent_simulation():
     max_duration = 120_000
     start_time = pygame.time.get_ticks()
-    generation_interval = 10000
+    generation_interval = 10_000
     last_generation = start_time
 
+    # Build real environment (2D grid: 0 = empty, 1 = obstacle)
+    environment = [[0 for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
     obstacles = set()
     while len(obstacles) < 80:
-        pos = (random.randint(0, GRID_WIDTH-1), random.randint(0, GRID_HEIGHT-1))
+        pos = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
         if pos != (0, 0):
             obstacles.add(pos)
+            environment[pos[1]][pos[0]] = 1  # Mark as obstacle
 
     boxes, holes = [], []
 
@@ -36,14 +39,18 @@ def run_intelligent_simulation():
             for container, others in [(boxes, holes), (holes, boxes)]:
                 attempts = 0
                 while attempts < 50:
-                    pos = (random.randint(0, GRID_WIDTH-1), random.randint(0, GRID_HEIGHT-1))
-                    if pos not in obstacles and pos not in [b[0] for b in boxes] and pos not in [h[0] for h in holes]:
+                    pos = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+                    if (environment[pos[1]][pos[0]] == 0 and
+                            pos not in [b[0] for b in boxes] and
+                            pos not in [h[0] for h in holes]):
                         container.append((pos, color))
                         break
                     attempts += 1
 
     spawn_box_hole()
-    agent = IntelligentAgent((0, 0))
+
+    # Pass full environment to the agent
+    agent = IntelligentAgent((0, 0), environment)
 
     while True:
         now = pygame.time.get_ticks()
@@ -63,7 +70,7 @@ def run_intelligent_simulation():
             last_generation = now
             agent.thought = "New targets spawned."
 
-        agent.update_intelligence(boxes, holes, obstacles)
+        agent.update_intelligence(boxes, holes)
         agent.execute_movement()
         agent.handle_pickup(boxes)
         agent.handle_drop(holes)
